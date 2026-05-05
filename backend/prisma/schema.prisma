@@ -1,0 +1,111 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String       @id @default(uuid())
+  githubId     Int          @unique
+  username     String       @unique
+  avatarUrl    String?
+  accessToken  String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  repositories Repository[]
+  commits      Commit[]
+  pullRequests PullRequest[]
+  issues       Issue[]
+}
+
+model Repository {
+  id              String   @id @default(uuid())
+  githubId        Int      @unique
+  name            String
+  ownerId         String
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  owner           User     @relation(fields: [ownerId], references: [id])
+  commits         Commit[]
+  pullRequests    PullRequest[]
+  issues          Issue[]
+}
+
+model Commit {
+  id        String   @id @default(uuid())
+  sha       String   @unique
+  message   String
+  additions Int      @default(0)
+  deletions Int      @default(0)
+  timestamp DateTime
+  
+  repoId    String
+  userId    String?
+  
+  repo      Repository @relation(fields: [repoId], references: [id])
+  user      User?      @relation(fields: [userId], references: [id])
+}
+
+model PullRequest {
+  id             String   @id @default(uuid())
+  githubPrId     Int      @unique
+  state          String
+  openedAt       DateTime
+  closedAt       DateTime?
+  mergedAt       DateTime?
+  latencyMinutes Int?
+  
+  repoId         String
+  userId         String?
+  
+  repo           Repository @relation(fields: [repoId], references: [id])
+  user           User?      @relation(fields: [userId], references: [id])
+}
+
+model Issue {
+  id                    String   @id @default(uuid())
+  githubIssueId         Int      @unique
+  state                 String
+  openedAt              DateTime
+  closedAt              DateTime?
+  resolutionTimeMinutes Int?
+  
+  repoId                String
+  userId                String?
+  
+  repo                  Repository @relation(fields: [repoId], references: [id])
+  user                  User?      @relation(fields: [userId], references: [id])
+}
+
+model DailyDeveloperMetric {
+  id             String   @id @default(uuid())
+  date           DateTime
+  userId         String
+  repoId         String
+  totalCommits   Int      @default(0)
+  totalAdditions Int      @default(0)
+  totalDeletions Int      @default(0)
+  mergedPrs      Int      @default(0)
+
+  @@unique([date, userId, repoId])
+}
+
+model ProjectHealthStat {
+  id                 String   @id @default(uuid())
+  date               DateTime
+  repoId             String
+  activeContributors Int      @default(0)
+  avgPrLatency       Float    @default(0)
+  openIssuesCount    Int      @default(0)
+
+  @@unique([date, repoId])
+}
