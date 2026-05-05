@@ -94,6 +94,14 @@ export const worker = new Worker('github-events', async (job) => {
           }
         }
       }
+      
+      try {
+        const { syncEventEmitter } = await import('./index');
+        syncEventEmitter.emit('sync-complete');
+      } catch (e) {
+        console.error('[Worker] Failed to emit sync-complete event', e);
+      }
+
       return { success: true };
     }
     const repoData = payload.repository;

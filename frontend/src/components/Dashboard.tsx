@@ -12,17 +12,40 @@ export default function Dashboard() {
 
   React.useEffect(() => {
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+    const fetchMetrics = () => {
+      fetch(`${API_BASE_URL}/api/metrics/dashboard`)
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to connect to backend API');
+          return res.json();
+        })
+        .then(data => setMetrics(data))
+        .catch(err => {
+          console.error(err);
+          setError(err.message);
+        });
+    };
+
+    fetchMetrics(); // Initial fetch
+
+    // Listen for Server-Sent Events (SSE) from the backend
+    const eventSource = new EventSource(`${API_BASE_URL}/api/metrics/stream`);
     
-    fetch(`${API_BASE_URL}/api/metrics/dashboard`)
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to connect to backend API');
-        return res.json();
-      })
-      .then(data => setMetrics(data))
-      .catch(err => {
-        console.error(err);
-        setError(err.message);
-      });
+    eventSource.onmessage = (event) => {
+      try {
+        const parsedData = JSON.parse(event.data);
+        if (parsedData.event === 'sync-complete') {
+          console.log('Background sync completed! Automatically fetching fresh data...');
+          fetchMetrics();
+        }
+      } catch (e) {
+        // ignore parse errors
+      }
+    };
+
+    return () => {
+      eventSource.close();
+    };
   }, []);
 
   if (error) {
@@ -41,6 +64,27 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
+      {metrics.totalCommits === 0 && (
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-panel p-6 rounded-xl border border-indigo-500/30 bg-indigo-900/20 flex items-center justify-between"
+        >
+          <div>
+            <h3 className="text-indigo-300 font-semibold text-lg flex items-center gap-2">
+              <svg className="animate-spin h-5 w-5 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Syncing Historical Data
+            </h3>
+            <p className="text-indigo-200/70 mt-1">
+              We are importing your past repositories and commits in the background. Your dashboard will automatically update in a few moments!
+            </p>
+          </div>
+        </motion.div>
+      )}
+
       {/* Top Metrics Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
@@ -80,7 +124,7 @@ export default function Dashboard() {
         <div className="lg:col-span-2">
           <ActivityChart data={metrics.activityPulse} />
         </div>
-        
+
         {/* Smart Insights Sidebar */}
         <motion.div
           initial={{ opacity: 0, x: 20 }}
@@ -89,7 +133,7 @@ export default function Dashboard() {
           className="glass-panel p-6 rounded-2xl flex flex-col h-full"
         >
           <h3 className="text-xl font-semibold text-white mb-6">Smart Insights</h3>
-          
+
           <div className="space-y-4 flex-1">
             <div className="p-4 rounded-xl bg-[rgba(99,102,241,0.1)] border border-[rgba(99,102,241,0.2)]">
               <div className="flex items-center space-x-2 mb-2">
@@ -97,12 +141,12 @@ export default function Dashboard() {
                 <h4 className="font-medium text-blue-100">Peak Productivity</h4>
               </div>
               <p className="text-sm text-blue-200/80">
-                {metrics.totalCommits === 0 
-                  ? 'Waiting for your first commit to analyze productivity patterns.' 
+                {metrics.totalCommits === 0
+                  ? 'Waiting for your first commit to analyze productivity patterns.'
                   : `You are most active on ${metrics.advancedStats.peakProductivityDay}s compared to other days.`}
               </p>
             </div>
-            
+
             <div className={`p-4 rounded-xl border ${metrics.totalCommits === 0 ? 'bg-[rgba(156,163,175,0.1)] border-[rgba(156,163,175,0.2)]' : metrics.advancedStats.hasLongPrs ? 'bg-[rgba(236,72,153,0.1)] border-[rgba(236,72,153,0.2)]' : 'bg-[rgba(16,185,129,0.1)] border-[rgba(16,185,129,0.2)]'}`}>
               <div className="flex items-center space-x-2 mb-2">
                 <div className={`w-2 h-2 rounded-full ${metrics.totalCommits === 0 ? 'bg-gray-400' : metrics.advancedStats.hasLongPrs ? 'bg-pink-400' : 'bg-green-400'}`}></div>
@@ -111,8 +155,8 @@ export default function Dashboard() {
               <p className={`text-sm ${metrics.totalCommits === 0 ? 'text-gray-400' : metrics.advancedStats.hasLongPrs ? 'text-pink-200/80' : 'text-green-200/80'}`}>
                 {metrics.mergedPrs === 0
                   ? 'Open and merge a Pull Request to track review latency.'
-                  : metrics.advancedStats.hasLongPrs 
-                    ? 'Your latest PRs are taking longer to review. Consider breaking them into smaller chunks.' 
+                  : metrics.advancedStats.hasLongPrs
+                    ? 'Your latest PRs are taking longer to review. Consider breaking them into smaller chunks.'
                     : 'Your PR review times are healthy and within the normal range.'}
               </p>
             </div>

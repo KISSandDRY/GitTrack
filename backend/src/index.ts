@@ -3,8 +3,11 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import { prisma } from './prisma';
+import { EventEmitter } from 'events';
 
 dotenv.config();
+
+export const syncEventEmitter = new EventEmitter();
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -157,6 +160,26 @@ app.get('/api/metrics/dashboard', async (req, res) => {
     console.error('Metrics Error:', error);
     res.status(500).json({ error: 'Failed to fetch metrics' });
   }
+});
+
+// Server-Sent Events Endpoint for live updates
+app.get('/api/metrics/stream', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  res.write('data: {"status": "connected"}\n\n');
+
+  const onSyncComplete = () => {
+    res.write('data: {"event": "sync-complete"}\n\n');
+  };
+
+  syncEventEmitter.on('sync-complete', onSyncComplete);
+
+  req.on('close', () => {
+    syncEventEmitter.off('sync-complete', onSyncComplete);
+  });
 });
 
 app.listen(port, () => {
