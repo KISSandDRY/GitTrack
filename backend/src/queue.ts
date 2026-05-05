@@ -22,7 +22,7 @@ export const worker = new Worker('github-events', async (job) => {
       if (!user) return { success: false, reason: 'User not found' };
 
       // 1. Fetch recent repos
-      const reposRes = await fetch(`https://api.github.com/users/${username}/repos?sort=updated&per_page=5`, {
+      const reposRes = await fetch(`https://api.github.com/user/repos?sort=updated&per_page=5&affiliation=owner`, {
         headers: { 'Authorization': `Bearer ${accessToken}`, 'User-Agent': 'GitTrack-App' }
       });
       const repos = await reposRes.json();
