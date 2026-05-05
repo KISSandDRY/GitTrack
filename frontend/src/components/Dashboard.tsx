@@ -11,7 +11,9 @@ export default function Dashboard() {
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    fetch('http://localhost:3001/api/metrics/dashboard')
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    
+    fetch(`${API_BASE_URL}/api/metrics/dashboard`)
       .then(res => {
         if (!res.ok) throw new Error('Failed to connect to backend API');
         return res.json();
