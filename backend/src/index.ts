@@ -115,16 +115,16 @@ app.get('/api/metrics/dashboard', async (req, res) => {
       take: 7
     });
 
-    const totalCommits = metrics.reduce((sum, m) => sum + m.totalCommits, 0) || 1248;
-    const mergedPrs = metrics.reduce((sum, m) => sum + m.mergedPrs, 0) || 84;
+    const totalCommits = metrics.reduce((sum, m) => sum + m.totalCommits, 0);
+    const mergedPrs = metrics.reduce((sum, m) => sum + m.mergedPrs, 0);
 
     res.json({
       totalCommits,
       mergedPrs,
-      avgPrLatency: advancedStats ? `${advancedStats.avgPrLatencyHours}h` : '14h',
-      riskScore: advancedStats ? (advancedStats.isDying ? 'High' : 'Low') : 'Low',
+      avgPrLatency: advancedStats ? `${advancedStats.avgPrLatencyHours}h` : '0h',
+      riskScore: advancedStats ? (advancedStats.isDying ? 'High' : 'Low') : 'None',
       advancedStats: advancedStats || {
-        peakProductivityDay: 'Tuesday',
+        peakProductivityDay: 'Not enough data',
         isDecaying: false,
         hasLongPrs: false
       },
@@ -132,13 +132,13 @@ app.get('/api/metrics/dashboard', async (req, res) => {
         name: m.date.toLocaleDateString('en-US', { weekday: 'short' }),
         commits: m.totalCommits
       })) : [
-        { name: 'Mon', commits: 12 },
-        { name: 'Tue', commits: 19 },
-        { name: 'Wed', commits: 15 },
-        { name: 'Thu', commits: 25 },
-        { name: 'Fri', commits: 22 },
-        { name: 'Sat', commits: 5 },
-        { name: 'Sun', commits: 8 }
+        { name: 'Mon', commits: 0 },
+        { name: 'Tue', commits: 0 },
+        { name: 'Wed', commits: 0 },
+        { name: 'Thu', commits: 0 },
+        { name: 'Fri', commits: 0 },
+        { name: 'Sat', commits: 0 },
+        { name: 'Sun', commits: 0 }
       ]
     });
   } catch (error) {
