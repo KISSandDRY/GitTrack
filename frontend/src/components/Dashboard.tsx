@@ -96,30 +96,38 @@ export default function Dashboard() {
                 <div className="w-2 h-2 rounded-full bg-blue-400"></div>
                 <h4 className="font-medium text-blue-100">Peak Productivity</h4>
               </div>
-              <p className="text-sm text-blue-200/80">You are most active on {metrics.advancedStats.peakProductivityDay}s compared to other days.</p>
+              <p className="text-sm text-blue-200/80">
+                {metrics.totalCommits === 0 
+                  ? 'Waiting for your first commit to analyze productivity patterns.' 
+                  : `You are most active on ${metrics.advancedStats.peakProductivityDay}s compared to other days.`}
+              </p>
             </div>
             
-            <div className={`p-4 rounded-xl border ${metrics.advancedStats.hasLongPrs ? 'bg-[rgba(236,72,153,0.1)] border-[rgba(236,72,153,0.2)]' : 'bg-[rgba(16,185,129,0.1)] border-[rgba(16,185,129,0.2)]'}`}>
+            <div className={`p-4 rounded-xl border ${metrics.totalCommits === 0 ? 'bg-[rgba(156,163,175,0.1)] border-[rgba(156,163,175,0.2)]' : metrics.advancedStats.hasLongPrs ? 'bg-[rgba(236,72,153,0.1)] border-[rgba(236,72,153,0.2)]' : 'bg-[rgba(16,185,129,0.1)] border-[rgba(16,185,129,0.2)]'}`}>
               <div className="flex items-center space-x-2 mb-2">
-                <div className={`w-2 h-2 rounded-full ${metrics.advancedStats.hasLongPrs ? 'bg-pink-400' : 'bg-green-400'}`}></div>
-                <h4 className={`font-medium ${metrics.advancedStats.hasLongPrs ? 'text-pink-100' : 'text-green-100'}`}>PR Bottleneck</h4>
+                <div className={`w-2 h-2 rounded-full ${metrics.totalCommits === 0 ? 'bg-gray-400' : metrics.advancedStats.hasLongPrs ? 'bg-pink-400' : 'bg-green-400'}`}></div>
+                <h4 className={`font-medium ${metrics.totalCommits === 0 ? 'text-gray-300' : metrics.advancedStats.hasLongPrs ? 'text-pink-100' : 'text-green-100'}`}>PR Bottleneck</h4>
               </div>
-              <p className={`text-sm ${metrics.advancedStats.hasLongPrs ? 'text-pink-200/80' : 'text-green-200/80'}`}>
-                {metrics.advancedStats.hasLongPrs 
-                  ? 'Your latest PRs are taking longer to review. Consider breaking them into smaller chunks.' 
-                  : 'Your PR review times are healthy and within the normal range.'}
+              <p className={`text-sm ${metrics.totalCommits === 0 ? 'text-gray-400' : metrics.advancedStats.hasLongPrs ? 'text-pink-200/80' : 'text-green-200/80'}`}>
+                {metrics.mergedPrs === 0
+                  ? 'Open and merge a Pull Request to track review latency.'
+                  : metrics.advancedStats.hasLongPrs 
+                    ? 'Your latest PRs are taking longer to review. Consider breaking them into smaller chunks.' 
+                    : 'Your PR review times are healthy and within the normal range.'}
               </p>
             </div>
 
-            <div className={`p-4 rounded-xl border ${metrics.advancedStats.isDecaying ? 'bg-[rgba(245,158,11,0.1)] border-[rgba(245,158,11,0.2)]' : 'bg-[rgba(16,185,129,0.1)] border-[rgba(16,185,129,0.2)]'}`}>
+            <div className={`p-4 rounded-xl border ${metrics.totalCommits === 0 ? 'bg-[rgba(156,163,175,0.1)] border-[rgba(156,163,175,0.2)]' : metrics.advancedStats.isDecaying ? 'bg-[rgba(245,158,11,0.1)] border-[rgba(245,158,11,0.2)]' : 'bg-[rgba(16,185,129,0.1)] border-[rgba(16,185,129,0.2)]'}`}>
               <div className="flex items-center space-x-2 mb-2">
-                <div className={`w-2 h-2 rounded-full ${metrics.advancedStats.isDecaying ? 'bg-yellow-400' : 'bg-green-400'}`}></div>
-                <h4 className={`font-medium ${metrics.advancedStats.isDecaying ? 'text-yellow-100' : 'text-green-100'}`}>Consistency Score</h4>
+                <div className={`w-2 h-2 rounded-full ${metrics.totalCommits === 0 ? 'bg-gray-400' : metrics.advancedStats.isDecaying ? 'bg-yellow-400' : 'bg-green-400'}`}></div>
+                <h4 className={`font-medium ${metrics.totalCommits === 0 ? 'text-gray-300' : metrics.advancedStats.isDecaying ? 'text-yellow-100' : 'text-green-100'}`}>Consistency Score</h4>
               </div>
-              <p className={`text-sm ${metrics.advancedStats.isDecaying ? 'text-yellow-200/80' : 'text-green-200/80'}`}>
-                {metrics.advancedStats.isDecaying
-                  ? 'Warning: The prediction curve shows a decline in your commit frequency.'
-                  : 'Excellent consistency this week! Your prediction curve shows steady growth.'}
+              <p className={`text-sm ${metrics.totalCommits === 0 ? 'text-gray-400' : metrics.advancedStats.isDecaying ? 'text-yellow-200/80' : 'text-green-200/80'}`}>
+                {metrics.totalCommits === 0
+                  ? 'Push some code to activate the Exponential Decay prediction model.'
+                  : metrics.advancedStats.isDecaying
+                    ? 'Warning: The prediction curve shows a decline in your commit frequency.'
+                    : 'Excellent consistency this week! Your prediction curve shows steady growth.'}
               </p>
             </div>
           </div>
