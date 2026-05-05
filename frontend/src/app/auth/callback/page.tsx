@@ -1,8 +1,8 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function CallbackPage() {
+function CallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
@@ -51,27 +51,33 @@ export default function CallbackPage() {
 
   if (error) {
     return (
-      <main className="min-h-screen bg-[#0A0A0B] flex flex-col items-center justify-center p-8">
-        <div className="glass-panel p-8 rounded-2xl max-w-md w-full border border-red-500/30 bg-red-900/10 text-center">
-          <h2 className="text-xl font-bold text-red-400 mb-4">Login Failed</h2>
-          <p className="text-red-200 mb-6">{error}</p>
-          <button 
-            onClick={() => router.push('/')}
-            className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
-          >
-            Go Back
-          </button>
-        </div>
-      </main>
+      <div className="glass-panel p-8 rounded-2xl max-w-md w-full border border-red-500/30 bg-red-900/10 text-center">
+        <h2 className="text-xl font-bold text-red-400 mb-4">Login Failed</h2>
+        <p className="text-red-200 mb-6">{error}</p>
+        <button 
+          onClick={() => router.push('/')}
+          className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+        >
+          Go Back
+        </button>
+      </div>
     );
   }
 
   return (
+    <div className="flex flex-col items-center gap-4">
+      <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
+      <p className="text-indigo-200 animate-pulse font-medium">Authenticating with GitHub...</p>
+    </div>
+  );
+}
+
+export default function CallbackPage() {
+  return (
     <main className="min-h-screen bg-[#0A0A0B] flex flex-col items-center justify-center p-8">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
-        <p className="text-indigo-200 animate-pulse font-medium">Authenticating with GitHub...</p>
-      </div>
+      <Suspense fallback={<div className="text-indigo-200 animate-pulse font-medium">Loading...</div>}>
+        <CallbackContent />
+      </Suspense>
     </main>
   );
 }
