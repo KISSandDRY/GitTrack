@@ -22,12 +22,17 @@ export const worker = new Worker('github-events', async (job) => {
       if (!user) return { success: false, reason: 'User not found' };
 
       // 1. Fetch recent repos
-      const reposRes = await fetch(`https://api.github.com/user/repos?visibility=public&sort=updated&per_page=5`, {
+      const reposRes = await fetch(`https://api.github.com/user/repos?sort=updated&per_page=10`, {
         headers: { 'Authorization': `Bearer ${accessToken}`, 'User-Agent': 'GitTrack-App' }
       });
       const repos = await reposRes.json();
 
-      if (!Array.isArray(repos)) return { success: false, reason: 'Failed to fetch repos' };
+      if (!Array.isArray(repos)) {
+        console.error('[Worker] Failed to fetch repos. API Response:', repos);
+        return { success: false, reason: 'Failed to fetch repos' };
+      }
+      
+      console.log(`[Worker] Found ${repos.length} public repos to sync.`);
 
       for (const repoData of repos) {
         // Upsert Repo
@@ -42,8 +47,11 @@ export const worker = new Worker('github-events', async (job) => {
           headers: { 'Authorization': `Bearer ${accessToken}`, 'User-Agent': 'GitTrack-App' }
         });
         const commits = await commitsRes.json();
-
-        if (Array.isArray(commits)) {
+        
+        if (!Array.isArray(commits)) {
+          console.error(`[Worker] Failed to fetch commits for ${repoData.name}. API Response:`, commits);
+        } else {
+          console.log(`[Worker] Found ${commits.length} commits in ${repoData.name}`);
           for (const commit of commits) {
             const timestamp = new Date(commit.commit.author.date);
             

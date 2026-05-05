@@ -121,10 +121,11 @@ app.get('/api/metrics/dashboard', async (req, res) => {
       advancedStats = await analyzeProjectHealth(repo.id);
     }
 
-    const metrics = await prisma.dailyDeveloperMetric.findMany({
-      orderBy: { date: 'asc' },
+    let metrics = await prisma.dailyDeveloperMetric.findMany({
+      orderBy: { date: 'desc' },
       take: 7
     });
+    metrics = metrics.reverse();
 
     const totalCommits = metrics.reduce((sum, m) => sum + m.totalCommits, 0);
     const mergedPrs = metrics.reduce((sum, m) => sum + m.mergedPrs, 0);
