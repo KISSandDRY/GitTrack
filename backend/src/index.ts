@@ -75,6 +75,17 @@ app.post('/api/auth/github', async (req, res) => {
     const jwtSecret = process.env.JWT_SECRET || 'super_secret';
     const sessionToken = jwt.sign({ userId: user.id, githubId: user.githubId }, jwtSecret, { expiresIn: '7d' });
 
+    // 5. Trigger Historical Sync in Background
+    try {
+      const { githubEventQueue } = await import('./queue');
+      await githubEventQueue.add('sync-history', { 
+        event: 'sync-history', 
+        payload: { userId: user.id, accessToken: user.accessToken, username: user.username }
+      });
+    } catch (e) {
+      console.error('Failed to enqueue historical sync:', e);
+    }
+
     res.json({ token: sessionToken, user: { id: user.id, username: user.username, avatarUrl: user.avatarUrl } });
   } catch (error) {
     console.error('Auth Error:', error);
