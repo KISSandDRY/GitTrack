@@ -114,17 +114,37 @@ app.post('/api/webhooks/github', async (req, res) => {
 // Dashboard Metrics Endpoint
 app.get('/api/metrics/dashboard', async (req, res) => {
   try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const jwtSecret = process.env.JWT_SECRET || 'super_secret';
+    let decoded: any;
+    
+    try {
+      decoded = jwt.verify(token, jwtSecret);
+    } catch (e) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
+    const userId = decoded.userId;
+
     const { analyzeProjectHealth } = await import('./analyzer');
     
-    // Find first repo for demo purposes
-    const repo = await prisma.repository.findFirst();
-    let advancedStats = null;
+    // Find first repo belonging to this user for demo purposes
+    const repo = await prisma.repository.findFirst({
+      where: { ownerId: userId }
+    });
     
+    let advancedStats = null;
     if (repo) {
       advancedStats = await analyzeProjectHealth(repo.id);
     }
 
     let metrics = await prisma.dailyDeveloperMetric.findMany({
+      where: { userId: userId },
       orderBy: { date: 'desc' },
       take: 7
     });

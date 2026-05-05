@@ -14,7 +14,12 @@ export default function Dashboard() {
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
     const fetchMetrics = () => {
-      fetch(`${API_BASE_URL}/api/metrics/dashboard`)
+      const token = localStorage.getItem('token');
+      fetch(`${API_BASE_URL}/api/metrics/dashboard`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
         .then(res => {
           if (!res.ok) throw new Error('Failed to connect to backend API');
           return res.json();
