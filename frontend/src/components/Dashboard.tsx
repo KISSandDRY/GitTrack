@@ -47,7 +47,7 @@ export default function Dashboard() {
           title="Total Commits"
           value={metrics.totalCommits.toLocaleString()}
           icon={GitCommit}
-          trend={12}
+          trend={0}
           trendLabel="vs last week"
           delay={0.1}
         />
@@ -55,7 +55,7 @@ export default function Dashboard() {
           title="Merged PRs"
           value={metrics.mergedPrs.toLocaleString()}
           icon={GitPullRequest}
-          trend={5}
+          trend={0}
           trendLabel="vs last week"
           delay={0.2}
         />
@@ -63,7 +63,7 @@ export default function Dashboard() {
           title="Avg PR Latency"
           value={metrics.avgPrLatency}
           icon={Clock}
-          trend={-18}
+          trend={0}
           trendLabel="faster than avg"
           delay={0.3}
         />
