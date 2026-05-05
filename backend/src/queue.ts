@@ -46,37 +46,40 @@ export const worker = new Worker('github-events', async (job) => {
         if (Array.isArray(commits)) {
           for (const commit of commits) {
             const timestamp = new Date(commit.commit.author.date);
-            await prisma.commit.upsert({
-              where: { sha: commit.sha },
-              update: {},
-              create: {
-                sha: commit.sha,
-                message: commit.commit.message,
-                timestamp,
-                repoId: repo.id,
-                userId: user.id,
-                additions: Math.floor(Math.random() * 50),
-                deletions: Math.floor(Math.random() * 20),
+            
+            const existingCommit = await prisma.commit.findUnique({ where: { sha: commit.sha } });
+            
+            if (!existingCommit) {
+              await prisma.commit.create({
+                data: {
+                  sha: commit.sha,
+                  message: commit.commit.message,
+                  timestamp,
+                  repoId: repo.id,
+                  userId: user.id,
+                  additions: Math.floor(Math.random() * 50),
+                  deletions: Math.floor(Math.random() * 20),
+                }
+              });
+
+              // Update DailyDeveloperMetric
+              const today = new Date(timestamp);
+              today.setHours(0, 0, 0, 0);
+
+              const existingMetric = await prisma.dailyDeveloperMetric.findUnique({
+                where: { date_userId_repoId: { date: today, userId: user.id, repoId: repo.id } }
+              });
+
+              if (existingMetric) {
+                await prisma.dailyDeveloperMetric.update({
+                  where: { id: existingMetric.id },
+                  data: { totalCommits: existingMetric.totalCommits + 1 }
+                });
+              } else {
+                await prisma.dailyDeveloperMetric.create({
+                  data: { date: today, userId: user.id, repoId: repo.id, totalCommits: 1, totalAdditions: 0, totalDeletions: 0 }
+                });
               }
-            });
-
-            // Update DailyDeveloperMetric
-            const today = new Date(timestamp);
-            today.setHours(0, 0, 0, 0);
-
-            const existingMetric = await prisma.dailyDeveloperMetric.findUnique({
-              where: { date_userId_repoId: { date: today, userId: user.id, repoId: repo.id } }
-            });
-
-            if (existingMetric) {
-              await prisma.dailyDeveloperMetric.update({
-                where: { id: existingMetric.id },
-                data: { totalCommits: existingMetric.totalCommits + 1 }
-              });
-            } else {
-              await prisma.dailyDeveloperMetric.create({
-                data: { date: today, userId: user.id, repoId: repo.id, totalCommits: 1, totalAdditions: 0, totalDeletions: 0 }
-              });
             }
           }
         }
