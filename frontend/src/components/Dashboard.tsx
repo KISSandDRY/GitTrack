@@ -103,7 +103,7 @@ export default function Dashboard() {
           title="Total Commits"
           value={metrics.totalCommits.toLocaleString()}
           icon={GitCommit}
-          trend={0}
+          trend={metrics.commitsTrend || 0}
           trendLabel="vs last week"
           delay={0.1}
         />

@@ -151,23 +151,37 @@ app.get('/api/metrics/dashboard', async (req, res) => {
     const totalCommits = lifetimeAgg._sum.totalCommits || 0;
     const mergedPrs = lifetimeAgg._sum.mergedPrs || 0;
 
-    // Generate strict LAST 7 CALENDAR DAYS for the chart
-    const last7Days = Array.from({ length: 7 }).map((_, i) => {
+    // Generate strict LAST 14 CALENDAR DAYS for the chart and trend calculations
+    const last14Days = Array.from({ length: 14 }).map((_, i) => {
       const d = new Date();
       d.setUTCHours(0, 0, 0, 0);
-      d.setUTCDate(d.getUTCDate() - (6 - i));
+      d.setUTCDate(d.getUTCDate() - (13 - i));
       return d;
     });
 
     const recentMetrics = await prisma.dailyDeveloperMetric.findMany({
       where: { 
         userId: userId,
-        date: { gte: last7Days[0] }
+        date: { gte: last14Days[0] }
       }
     });
 
-    const activityPulse = last7Days.map(date => {
-      const match = recentMetrics.find(m => m.date.getTime() === date.getTime());
+    // Split into previous week (first 7) and this week (last 7)
+    const previousWeekMetrics = recentMetrics.filter(m => m.date.getTime() < last14Days[7].getTime());
+    const thisWeekMetrics = recentMetrics.filter(m => m.date.getTime() >= last14Days[7].getTime());
+
+    const commitsLastWeek = previousWeekMetrics.reduce((sum, m) => sum + m.totalCommits, 0);
+    const commitsThisWeek = thisWeekMetrics.reduce((sum, m) => sum + m.totalCommits, 0);
+
+    let commitsTrend = 0;
+    if (commitsLastWeek === 0 && commitsThisWeek > 0) {
+      commitsTrend = 100;
+    } else if (commitsLastWeek > 0) {
+      commitsTrend = Math.round(((commitsThisWeek - commitsLastWeek) / commitsLastWeek) * 100);
+    }
+
+    const activityPulse = last14Days.slice(7).map(date => {
+      const match = thisWeekMetrics.find(m => m.date.getTime() === date.getTime());
       return {
         name: date.toLocaleDateString('en-US', { weekday: 'short' }),
         commits: match ? match.totalCommits : 0
@@ -176,6 +190,7 @@ app.get('/api/metrics/dashboard', async (req, res) => {
 
     res.json({
       totalCommits,
+      commitsTrend,
       mergedPrs,
       avgPrLatency: advancedStats ? `${advancedStats.avgPrLatencyHours}h` : '0h',
       riskScore: advancedStats ? (advancedStats.isDying ? 'High' : 'Low') : 'None',
