@@ -219,6 +219,14 @@ export const worker = new Worker('github-events', async (job) => {
        }
     }
     
+    // Emit SSE to auto-update connected clients
+    try {
+      const { syncEventEmitter } = await import('./index');
+      syncEventEmitter.emit('sync-complete');
+    } catch (e) {
+      console.error('[Worker] Failed to emit sync-complete event', e);
+    }
+
     return { success: true };
   } catch (error) {
     console.error(`[Worker] Failed to process job ${job.id}:`, error);
