@@ -143,15 +143,36 @@ app.get('/api/metrics/dashboard', async (req, res) => {
       advancedStats = await analyzeProjectHealth(repo.id);
     }
 
-    let metrics = await prisma.dailyDeveloperMetric.findMany({
+    // Calculate LIFETIME totals
+    const lifetimeAgg = await prisma.dailyDeveloperMetric.aggregate({
       where: { userId: userId },
-      orderBy: { date: 'desc' },
-      take: 7
+      _sum: { totalCommits: true, mergedPrs: true }
     });
-    metrics = metrics.reverse();
+    const totalCommits = lifetimeAgg._sum.totalCommits || 0;
+    const mergedPrs = lifetimeAgg._sum.mergedPrs || 0;
 
-    const totalCommits = metrics.reduce((sum, m) => sum + m.totalCommits, 0);
-    const mergedPrs = metrics.reduce((sum, m) => sum + m.mergedPrs, 0);
+    // Generate strict LAST 7 CALENDAR DAYS for the chart
+    const last7Days = Array.from({ length: 7 }).map((_, i) => {
+      const d = new Date();
+      d.setUTCHours(0, 0, 0, 0);
+      d.setUTCDate(d.getUTCDate() - (6 - i));
+      return d;
+    });
+
+    const recentMetrics = await prisma.dailyDeveloperMetric.findMany({
+      where: { 
+        userId: userId,
+        date: { gte: last7Days[0] }
+      }
+    });
+
+    const activityPulse = last7Days.map(date => {
+      const match = recentMetrics.find(m => m.date.getTime() === date.getTime());
+      return {
+        name: date.toLocaleDateString('en-US', { weekday: 'short' }),
+        commits: match ? match.totalCommits : 0
+      };
+    });
 
     res.json({
       totalCommits,
@@ -163,18 +184,7 @@ app.get('/api/metrics/dashboard', async (req, res) => {
         isDecaying: false,
         hasLongPrs: false
       },
-      activityPulse: metrics.length > 0 ? metrics.map(m => ({
-        name: m.date.toLocaleDateString('en-US', { weekday: 'short' }),
-        commits: m.totalCommits
-      })) : [
-        { name: 'Mon', commits: 0 },
-        { name: 'Tue', commits: 0 },
-        { name: 'Wed', commits: 0 },
-        { name: 'Thu', commits: 0 },
-        { name: 'Fri', commits: 0 },
-        { name: 'Sat', commits: 0 },
-        { name: 'Sun', commits: 0 }
-      ]
+      activityPulse
     });
   } catch (error) {
     console.error('Metrics Error:', error);
