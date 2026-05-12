@@ -9,6 +9,12 @@ import { motion } from 'framer-motion';
 export default function Dashboard() {
   const [metrics, setMetrics] = React.useState<any>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [showSyncBanner, setShowSyncBanner] = React.useState(true);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => setShowSyncBanner(false), 15000);
+    return () => clearTimeout(timer);
+  }, []);
 
   React.useEffect(() => {
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -41,6 +47,7 @@ export default function Dashboard() {
         const parsedData = JSON.parse(event.data);
         if (parsedData.event === 'sync-complete') {
           console.log('Background sync completed! Automatically fetching fresh data...');
+          setShowSyncBanner(false);
           fetchMetrics();
         }
       } catch (e) {
@@ -69,7 +76,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      {metrics.totalCommits === 0 && (
+      {metrics.totalCommits === 0 && showSyncBanner && (
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}

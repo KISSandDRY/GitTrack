@@ -51,12 +51,34 @@ export default function Home() {
             Advanced engineering metrics and workflow insights
           </p>
         </div>
-        <button 
-          onClick={() => { localStorage.removeItem('token'); setIsAuthenticated(false); }} 
-          className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-colors text-sm font-medium"
-        >
-          Sign Out
-        </button>
+        <div className="flex gap-4">
+          <button 
+            onClick={async () => {
+              if (confirm('Are you sure you want to delete all your tracked data? This cannot be undone.')) {
+                const token = localStorage.getItem('token');
+                try {
+                  await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/users/me`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                  });
+                  localStorage.removeItem('token');
+                  setIsAuthenticated(false);
+                } catch (e) {
+                  alert('Failed to delete data');
+                }
+              }
+            }}
+            className="px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:text-white hover:bg-red-500/40 transition-colors text-sm font-medium"
+          >
+            Delete Data
+          </button>
+          <button 
+            onClick={() => { localStorage.removeItem('token'); setIsAuthenticated(false); }} 
+            className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-colors text-sm font-medium"
+          >
+            Sign Out
+          </button>
+        </div>
       </header>
 
       <Dashboard />

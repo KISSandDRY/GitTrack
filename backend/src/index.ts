@@ -182,6 +182,40 @@ app.get('/api/metrics/dashboard', async (req, res) => {
   }
 });
 
+// Delete Account Endpoint
+app.delete('/api/users/me', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const jwtSecret = process.env.JWT_SECRET || 'super_secret';
+    let decoded: any;
+    
+    try {
+      decoded = jwt.verify(token, jwtSecret);
+    } catch (e) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
+    const userId = decoded.userId;
+
+    // Prisma cascade deletes aren't configured explicitly in schema, so we delete relations first
+    await prisma.dailyDeveloperMetric.deleteMany({ where: { userId } });
+    await prisma.commit.deleteMany({ where: { userId } });
+    await prisma.pullRequest.deleteMany({ where: { userId } });
+    await prisma.repository.deleteMany({ where: { ownerId: userId } });
+    await prisma.user.delete({ where: { id: userId } });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete Error:', error);
+    res.status(500).json({ error: 'Failed to delete account data' });
+  }
+});
+
 // Server-Sent Events Endpoint for live updates
 app.get('/api/metrics/stream', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
