@@ -60,6 +60,9 @@ export const worker = new Worker('github-events', async (job) => {
             const existingCommit = await prisma.commit.findUnique({ where: { sha: commit.sha } });
             
             if (!existingCommit) {
+              const additions = Math.floor(Math.random() * 50);
+              const deletions = Math.floor(Math.random() * 20);
+
               await prisma.commit.create({
                 data: {
                   sha: commit.sha,
@@ -67,8 +70,8 @@ export const worker = new Worker('github-events', async (job) => {
                   timestamp,
                   repoId: repo.id,
                   userId: user.id,
-                  additions: Math.floor(Math.random() * 50),
-                  deletions: Math.floor(Math.random() * 20),
+                  additions,
+                  deletions,
                 }
               });
 
@@ -83,11 +86,22 @@ export const worker = new Worker('github-events', async (job) => {
               if (existingMetric) {
                 await prisma.dailyDeveloperMetric.update({
                   where: { id: existingMetric.id },
-                  data: { totalCommits: existingMetric.totalCommits + 1 }
+                  data: { 
+                    totalCommits: existingMetric.totalCommits + 1,
+                    totalAdditions: existingMetric.totalAdditions + additions,
+                    totalDeletions: existingMetric.totalDeletions + deletions
+                  }
                 });
               } else {
                 await prisma.dailyDeveloperMetric.create({
-                  data: { date: today, userId: user.id, repoId: repo.id, totalCommits: 1, totalAdditions: 0, totalDeletions: 0 }
+                  data: { 
+                    date: today, 
+                    userId: user.id, 
+                    repoId: repo.id, 
+                    totalCommits: 1, 
+                    totalAdditions: additions, 
+                    totalDeletions: deletions 
+                  }
                 });
               }
             }
