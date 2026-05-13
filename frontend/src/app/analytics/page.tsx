@@ -126,7 +126,14 @@ export default function AnalyticsPage() {
                     <span className="text-2xl font-bold text-white">{metrics.codeChurn.additions.toLocaleString()}</span>
                   </div>
                   <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
-                    <div className="h-full bg-green-500 rounded-full" style={{ width: '100%' }}></div>
+                    <div 
+                      className="h-full bg-green-500 rounded-full" 
+                      style={{ 
+                        width: `${metrics.codeChurn.additions + metrics.codeChurn.deletions > 0 
+                          ? (metrics.codeChurn.additions / (metrics.codeChurn.additions + metrics.codeChurn.deletions)) * 100 
+                          : 0}%` 
+                      }}
+                    ></div>
                   </div>
                 </div>
 
@@ -139,7 +146,9 @@ export default function AnalyticsPage() {
                     <div 
                       className="h-full bg-red-500 rounded-full" 
                       style={{ 
-                        width: `${Math.min(100, (metrics.codeChurn.deletions / Math.max(metrics.codeChurn.additions, 1)) * 100)}%` 
+                        width: `${metrics.codeChurn.additions + metrics.codeChurn.deletions > 0 
+                          ? (metrics.codeChurn.deletions / (metrics.codeChurn.additions + metrics.codeChurn.deletions)) * 100 
+                          : 0}%` 
                       }}
                     ></div>
                   </div>
