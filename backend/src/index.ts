@@ -207,6 +207,86 @@ app.get('/api/metrics/dashboard', async (req, res) => {
   }
 });
 
+// GET /api/repos Endpoint
+app.get('/api/repos', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret') as any;
+
+    const repos = await prisma.repository.findMany({
+      where: { ownerId: decoded.userId },
+      include: {
+        _count: { select: { commits: true, pullRequests: true } }
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    const formattedRepos = repos.map(repo => ({
+      id: repo.id,
+      name: repo.name,
+      updatedAt: repo.updatedAt,
+      commitCount: repo._count.commits,
+      prCount: repo._count.pullRequests
+    }));
+
+    res.json(formattedRepos);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch repos' });
+  }
+});
+
+// GET /api/metrics/advanced Endpoint (30-Day Heatmap)
+app.get('/api/metrics/advanced', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret') as any;
+
+    // Generate strict LAST 30 CALENDAR DAYS
+    const last30Days = Array.from({ length: 30 }).map((_, i) => {
+      const d = new Date();
+      d.setUTCHours(0, 0, 0, 0);
+      d.setUTCDate(d.getUTCDate() - (29 - i));
+      return d;
+    });
+
+    const recentMetrics = await prisma.dailyDeveloperMetric.findMany({
+      where: { 
+        userId: decoded.userId,
+        date: { gte: last30Days[0] }
+      }
+    });
+
+    let totalAdditions = 0;
+    let totalDeletions = 0;
+
+    const heatmap = last30Days.map(date => {
+      const match = recentMetrics.find(m => m.date.getTime() === date.getTime());
+      if (match) {
+        totalAdditions += match.totalAdditions;
+        totalDeletions += match.totalDeletions;
+      }
+      return {
+        date: date.toISOString().split('T')[0], // YYYY-MM-DD
+        commits: match ? match.totalCommits : 0
+      };
+    });
+
+    res.json({
+      heatmap,
+      codeChurn: {
+        additions: totalAdditions,
+        deletions: totalDeletions
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch advanced metrics' });
+  }
+});
+
 // Delete Account Endpoint
 app.delete('/api/users/me', async (req, res) => {
   try {
@@ -250,6 +330,11 @@ app.get('/api/metrics/stream', (req, res) => {
 
   res.write('data: {"status": "connected"}\n\n');
 
+  // Send a heartbeat every 30 seconds to keep Render from dropping the connection
+  const keepAliveId = setInterval(() => {
+    res.write(':\n\n'); // Empty comment to keep connection alive
+  }, 30000);
+
   const onSyncComplete = () => {
     res.write('data: {"event": "sync-complete"}\n\n');
   };
@@ -257,6 +342,7 @@ app.get('/api/metrics/stream', (req, res) => {
   syncEventEmitter.on('sync-complete', onSyncComplete);
 
   req.on('close', () => {
+    clearInterval(keepAliveId);
     syncEventEmitter.off('sync-complete', onSyncComplete);
   });
 });
