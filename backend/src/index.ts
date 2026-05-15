@@ -181,10 +181,11 @@ app.get('/api/metrics/dashboard', async (req, res) => {
     }
 
     const activityPulse = last14Days.slice(7).map(date => {
-      const match = thisWeekMetrics.find(m => m.date.getTime() === date.getTime());
+      const matches = thisWeekMetrics.filter(m => m.date.getTime() === date.getTime());
+      const dailyCommits = matches.reduce((sum, m) => sum + m.totalCommits, 0);
       return {
         name: date.toLocaleDateString('en-US', { weekday: 'short' }),
-        commits: match ? match.totalCommits : 0
+        commits: dailyCommits
       };
     });
 
@@ -264,14 +265,18 @@ app.get('/api/metrics/advanced', async (req, res) => {
     let totalDeletions = 0;
 
     const heatmap = last30Days.map(date => {
-      const match = recentMetrics.find(m => m.date.getTime() === date.getTime());
-      if (match) {
+      const matches = recentMetrics.filter(m => m.date.getTime() === date.getTime());
+      let dailyCommits = 0;
+      
+      matches.forEach(match => {
+        dailyCommits += match.totalCommits;
         totalAdditions += match.totalAdditions;
         totalDeletions += match.totalDeletions;
-      }
+      });
+
       return {
         date: date.toISOString().split('T')[0], // YYYY-MM-DD
-        commits: match ? match.totalCommits : 0
+        commits: dailyCommits
       };
     });
 
@@ -338,8 +343,8 @@ app.get('/api/metrics/behavior', async (req, res) => {
     });
 
     const dailyCounts = last30Days.map(date => {
-      const match = recentMetrics.find(m => m.date.getTime() === date.getTime());
-      return match ? match.totalCommits : 0;
+      const matches = recentMetrics.filter(m => m.date.getTime() === date.getTime());
+      return matches.reduce((sum, m) => sum + m.totalCommits, 0);
     });
 
     const activeDays = dailyCounts.filter(c => c > 0);
