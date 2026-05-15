@@ -111,6 +111,29 @@ app.post('/api/webhooks/github', async (req, res) => {
   res.status(200).send({ status: 'queued' });
 });
 
+// Manual Sync Endpoint (Auto-sync from frontend)
+app.post('/api/sync', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret') as any;
+
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const { githubEventQueue } = await import('./queue');
+    await githubEventQueue.add('sync-history', { 
+      event: 'sync-history', 
+      payload: { userId: user.id, accessToken: user.accessToken, username: user.username }
+    });
+
+    res.json({ success: true, message: 'Sync queued' });
+  } catch (error) {
+    res.status(500).json({ error: 'Sync failed' });
+  }
+});
+
 // Dashboard Metrics Endpoint
 app.get('/api/metrics/dashboard', async (req, res) => {
   try {

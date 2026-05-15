@@ -51,6 +51,12 @@ export default function Dashboard() {
 
     fetchMetrics(); // Initial fetch
 
+    // Trigger a background sync on mount to catch any commits from non-webhook repos
+    fetch(`${API_BASE_URL}/api/sync`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    }).catch(console.error);
+
     // Listen for Server-Sent Events (SSE) from the backend
     const eventSource = new EventSource(`${API_BASE_URL}/api/metrics/stream`);
     

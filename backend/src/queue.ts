@@ -74,39 +74,34 @@ export const worker = new Worker('github-events', async (job) => {
                   deletions,
                 }
               });
-
-              // Update DailyDeveloperMetric
-              const today = new Date(timestamp);
-              today.setHours(0, 0, 0, 0);
-
-              const existingMetric = await prisma.dailyDeveloperMetric.findUnique({
-                where: { date_userId_repoId: { date: today, userId: user.id, repoId: repo.id } }
-              });
-
-              if (existingMetric) {
-                await prisma.dailyDeveloperMetric.update({
-                  where: { id: existingMetric.id },
-                  data: { 
-                    totalCommits: existingMetric.totalCommits + 1,
-                    totalAdditions: existingMetric.totalAdditions + additions,
-                    totalDeletions: existingMetric.totalDeletions + deletions
-                  }
-                });
-              } else {
-                await prisma.dailyDeveloperMetric.create({
-                  data: { 
-                    date: today, 
-                    userId: user.id, 
-                    repoId: repo.id, 
-                    totalCommits: 1, 
-                    totalAdditions: additions, 
-                    totalDeletions: deletions 
-                  }
-                });
-              }
             }
           }
         }
+      }
+
+      // 3. Rebuild DailyDeveloperMetric to ensure 100% accuracy (fixes any corrupted/missing rows)
+      console.log(`[Worker] Rebuilding daily metrics for user ${username}...`);
+      await prisma.dailyDeveloperMetric.deleteMany({ where: { userId: user.id } });
+      const allCommits = await prisma.commit.findMany({ where: { userId: user.id } });
+      
+      const metricsMap = new Map<string, any>();
+      for (const c of allCommits) {
+        const today = new Date(c.timestamp);
+        today.setHours(0, 0, 0, 0);
+        const key = `${today.getTime()}_${c.repoId}`;
+        
+        if (!metricsMap.has(key)) {
+          metricsMap.set(key, { date: today, userId: user.id, repoId: c.repoId, totalCommits: 0, totalAdditions: 0, totalDeletions: 0 });
+        }
+        
+        const metric = metricsMap.get(key)!;
+        metric.totalCommits += 1;
+        metric.totalAdditions += c.additions;
+        metric.totalDeletions += c.deletions;
+      }
+
+      for (const metric of metricsMap.values()) {
+        await prisma.dailyDeveloperMetric.create({ data: metric });
       }
       
       try {
