@@ -41,7 +41,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-8">
+    <div className="w-full max-w-7xl mx-auto space-y-8 p-6 lg:p-10">
       <header className="mb-10">
         <h1 className="text-4xl font-extrabold tracking-tight glow-text mb-2 text-white">
           Settings
@@ -51,8 +51,9 @@ export default function SettingsPage() {
         </p>
       </header>
 
-      {/* Profile Section */}
-      <motion.section 
+      <div className="max-w-4xl space-y-8">
+        {/* Profile Section */}
+        <motion.section 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="glass-panel p-8 rounded-2xl border border-white/5"
@@ -115,6 +116,7 @@ export default function SettingsPage() {
           </button>
         </div>
       </motion.section>
+      </div>
     </div>
   );
 }

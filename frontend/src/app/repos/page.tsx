@@ -41,7 +41,7 @@ export default function ReposPage() {
   }, []);
 
   return (
-    <div className="w-full max-w-7xl mx-auto">
+    <div className="w-full max-w-7xl mx-auto p-6 lg:p-10">
       <header className="mb-10">
         <h1 className="text-4xl font-extrabold tracking-tight glow-text mb-2 text-white">
           Repositories
