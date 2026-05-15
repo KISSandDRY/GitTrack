@@ -146,7 +146,7 @@ export const worker = new Worker('github-events', async (job) => {
             
             if (!repo) {
               repo = await prisma.repository.create({
-                data: { name: repoName, isPrivate: false, ownerId: user.id }
+                data: { githubId: push.repo.id, name: repoName, ownerId: user.id }
               });
             }
 
