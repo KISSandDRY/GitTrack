@@ -287,6 +287,96 @@ app.get('/api/metrics/advanced', async (req, res) => {
   }
 });
 
+// GET /api/metrics/behavior Endpoint
+app.get('/api/metrics/behavior', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret') as any;
+
+    const userId = decoded.userId;
+
+    const commits = await prisma.commit.findMany({ where: { userId } });
+
+    // 1. Developer Persona (Time of Day)
+    const timeDistribution = { morning: 0, afternoon: 0, evening: 0, night: 0 };
+    let totalGoodMessages = 0;
+    let totalBadMessages = 0;
+    let totalLinesChanged = 0;
+
+    commits.forEach(c => {
+      const hour = new Date(c.timestamp).getHours();
+      if (hour >= 6 && hour < 12) timeDistribution.morning++;
+      else if (hour >= 12 && hour < 18) timeDistribution.afternoon++;
+      else if (hour >= 18 && hour <= 23) timeDistribution.evening++;
+      else timeDistribution.night++;
+
+      // 2. Etiquette
+      const msg = c.message.trim().toLowerCase();
+      const lazyWords = ['update', 'fix', 'wip', 'test', 'asdf', 'test1', 'fixes', 'bug'];
+      if (msg.length < 10 || lazyWords.includes(msg)) {
+        totalBadMessages++;
+      } else {
+        totalGoodMessages++;
+      }
+
+      totalLinesChanged += (c.additions + c.deletions);
+    });
+
+    const totalEtiquetteCommits = totalGoodMessages + totalBadMessages;
+    const etiquetteScore = totalEtiquetteCommits > 0 ? Math.round((totalGoodMessages / totalEtiquetteCommits) * 100) : 0;
+
+    // 3. Consistency
+    const last30Days = Array.from({ length: 30 }).map((_, i) => {
+      const d = new Date(); d.setUTCHours(0, 0, 0, 0); d.setUTCDate(d.getUTCDate() - (29 - i));
+      return d;
+    });
+
+    const recentMetrics = await prisma.dailyDeveloperMetric.findMany({
+      where: { userId, date: { gte: last30Days[0] } }
+    });
+
+    const dailyCounts = last30Days.map(date => {
+      const match = recentMetrics.find(m => m.date.getTime() === date.getTime());
+      return match ? match.totalCommits : 0;
+    });
+
+    const activeDays = dailyCounts.filter(c => c > 0);
+    const avgDaily = activeDays.length > 0 ? activeDays.reduce((a, b) => a + b, 0) / activeDays.length : 0;
+    const variance = activeDays.length > 0 ? activeDays.reduce((sum, count) => sum + Math.pow(count - avgDaily, 2), 0) / activeDays.length : 0;
+    const stdDev = Math.sqrt(variance);
+
+    const consistencyScore = activeDays.length === 0 ? 0 : Math.max(0, Math.min(100, Math.round(100 - (stdDev * 10))));
+
+    let burnoutRisk = 'Low';
+    if (stdDev > 5) burnoutRisk = 'High';
+    else if (stdDev > 3) burnoutRisk = 'Medium';
+
+    // 4. Impact
+    const totalCommitCount = commits.length;
+    const avgLinesPerCommit = totalCommitCount > 0 ? Math.round(totalLinesChanged / totalCommitCount) : 0;
+
+    let coderType = 'Iterative Developer';
+    if (avgLinesPerCommit > 200) coderType = 'Bulk Coder';
+    else if (avgLinesPerCommit < 10 && totalCommitCount > 20) coderType = 'Noisy Coder';
+
+    res.json({
+      timeDistribution: [
+        { name: 'Morning', value: timeDistribution.morning },
+        { name: 'Afternoon', value: timeDistribution.afternoon },
+        { name: 'Evening', value: timeDistribution.evening },
+        { name: 'Night', value: timeDistribution.night }
+      ],
+      etiquette: { score: etiquetteScore, good: totalGoodMessages, bad: totalBadMessages },
+      consistency: { score: consistencyScore, burnoutRisk, stdDev: parseFloat(stdDev.toFixed(2)) },
+      impact: { avgLinesPerCommit, coderType }
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch behavior metrics' });
+  }
+});
+
 // Delete Account Endpoint
 app.delete('/api/users/me', async (req, res) => {
   try {
