@@ -53,12 +53,6 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="mt-auto">
-        <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-900/20 to-purple-900/20 border border-indigo-500/10">
-          <p className="text-xs text-indigo-300 font-medium mb-1">GitTrack Pro</p>
-          <p className="text-[10px] text-indigo-200/60 leading-tight">University Project Edition.<br/>Analytics actively tracking.</p>
-        </div>
-      </div>
     </aside>
   );
 }

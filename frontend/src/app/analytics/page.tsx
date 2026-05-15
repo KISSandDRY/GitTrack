@@ -70,7 +70,7 @@ export default function AnalyticsPage() {
   const PIE_COLORS = ['#6366f1', '#ef4444']; // Indigo for Good, Red for Bad
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-8">
+    <div className="w-full max-w-7xl mx-auto space-y-8 p-6 lg:p-10">
       <header className="mb-10">
         <h1 className="text-4xl font-extrabold tracking-tight glow-text mb-2 text-white">
           Behavioral Analytics

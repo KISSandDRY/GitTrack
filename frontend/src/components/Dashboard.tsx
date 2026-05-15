@@ -3,11 +3,25 @@
 import React from 'react';
 import StatCard from './StatCard';
 import ActivityChart from './ActivityChart';
-import { GitCommit, GitPullRequest, Clock, AlertTriangle } from 'lucide-react';
+import { GitCommit, GitPullRequest, Clock, AlertTriangle, Activity, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+interface HeatmapDay {
+  date: string;
+  commits: number;
+}
+
+interface AdvancedMetrics {
+  heatmap: HeatmapDay[];
+  codeChurn: {
+    additions: number;
+    deletions: number;
+  };
+}
 
 export default function Dashboard() {
   const [metrics, setMetrics] = React.useState<any>(null);
+  const [advancedMetrics, setAdvancedMetrics] = React.useState<AdvancedMetrics | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [showSyncBanner, setShowSyncBanner] = React.useState(true);
 
@@ -21,20 +35,18 @@ export default function Dashboard() {
 
     const fetchMetrics = () => {
       const token = localStorage.getItem('token');
-      fetch(`${API_BASE_URL}/api/metrics/dashboard`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to connect to backend API');
-          return res.json();
-        })
-        .then(data => setMetrics(data))
-        .catch(err => {
-          console.error(err);
-          setError(err.message);
-        });
+      
+      Promise.all([
+        fetch(`${API_BASE_URL}/api/metrics/dashboard`, { headers: { 'Authorization': `Bearer ${token}` } }).then(res => res.json()),
+        fetch(`${API_BASE_URL}/api/metrics/advanced`, { headers: { 'Authorization': `Bearer ${token}` } }).then(res => res.json())
+      ]).then(([dashboardData, advancedData]) => {
+        if (dashboardData.error) throw new Error(dashboardData.error);
+        setMetrics(dashboardData);
+        setAdvancedMetrics(advancedData);
+      }).catch(err => {
+        console.error(err);
+        setError(err.message || 'Failed to connect to backend API');
+      });
     };
 
     fetchMetrics(); // Initial fetch
@@ -189,6 +201,119 @@ export default function Dashboard() {
           </div>
         </motion.div>
       </div>
+
+      {advancedMetrics && (
+        <div className="space-y-8 mt-8">
+          {/* 30-Day Heatmap */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-panel p-8 rounded-2xl border border-white/5"
+          >
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center">
+                <Activity className="text-indigo-400" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white">30-Day Contribution Heatmap</h3>
+                <p className="text-sm text-gray-400">Your commit frequency over the last month</p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {advancedMetrics.heatmap.map((day, i) => {
+                let colorClass = 'bg-white/5 border-white/5';
+                if (day.commits > 0 && day.commits <= 2) colorClass = 'bg-indigo-900/50 border-indigo-800/50';
+                else if (day.commits > 2 && day.commits <= 5) colorClass = 'bg-indigo-600/60 border-indigo-500/50';
+                else if (day.commits > 5 && day.commits <= 10) colorClass = 'bg-indigo-500 border-indigo-400';
+                else if (day.commits > 10) colorClass = 'bg-indigo-400 border-indigo-300 shadow-[0_0_10px_rgba(129,140,248,0.5)]';
+
+                return (
+                  <div 
+                    key={i} 
+                    className={`w-12 h-12 rounded-md border flex items-center justify-center transition-all hover:scale-110 cursor-help ${colorClass}`}
+                    title={`${day.commits} commits on ${day.date}`}
+                  >
+                    {day.commits > 0 && <span className="text-xs font-bold text-white/90">{day.commits}</span>}
+                  </div>
+                );
+              })}
+            </div>
+            
+            <div className="mt-6 flex items-center gap-2 text-xs text-gray-400 justify-end">
+              <span>Less</span>
+              <div className="w-4 h-4 rounded-sm bg-white/5 border border-white/5"></div>
+              <div className="w-4 h-4 rounded-sm bg-indigo-900/50 border border-indigo-800/50"></div>
+              <div className="w-4 h-4 rounded-sm bg-indigo-600/60 border border-indigo-500/50"></div>
+              <div className="w-4 h-4 rounded-sm bg-indigo-500 border border-indigo-400"></div>
+              <div className="w-4 h-4 rounded-sm bg-indigo-400 border border-indigo-300"></div>
+              <span>More</span>
+            </div>
+          </motion.div>
+
+          {/* Code Churn */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-6"
+          >
+            <div className="glass-panel p-8 rounded-2xl border border-white/5 flex flex-col justify-center">
+              <h3 className="text-lg font-semibold text-white mb-6">Code Churn (Last 30 Days)</h3>
+              
+              <div className="space-y-6">
+                <div>
+                  <div className="flex justify-between items-end mb-2">
+                    <span className="text-green-400 flex items-center gap-1 font-medium"><ArrowUpRight size={16}/> Additions</span>
+                    <span className="text-2xl font-bold text-white">{advancedMetrics.codeChurn.additions.toLocaleString()}</span>
+                  </div>
+                  <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-green-500 rounded-full" 
+                      style={{ 
+                        width: `${advancedMetrics.codeChurn.additions + advancedMetrics.codeChurn.deletions > 0 
+                          ? (advancedMetrics.codeChurn.additions / (advancedMetrics.codeChurn.additions + advancedMetrics.codeChurn.deletions)) * 100 
+                          : 0}%` 
+                      }}
+                    ></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-end mb-2">
+                    <span className="text-red-400 flex items-center gap-1 font-medium"><ArrowDownRight size={16}/> Deletions</span>
+                    <span className="text-2xl font-bold text-white">{advancedMetrics.codeChurn.deletions.toLocaleString()}</span>
+                  </div>
+                  <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-red-500 rounded-full" 
+                      style={{ 
+                        width: `${advancedMetrics.codeChurn.additions + advancedMetrics.codeChurn.deletions > 0 
+                          ? (advancedMetrics.codeChurn.deletions / (advancedMetrics.codeChurn.additions + advancedMetrics.codeChurn.deletions)) * 100 
+                          : 0}%` 
+                      }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="glass-panel p-8 rounded-2xl border border-white/5 bg-gradient-to-br from-indigo-900/10 to-transparent">
+              <h3 className="text-lg font-semibold text-white mb-2">What does Churn mean?</h3>
+              <p className="text-gray-400 text-sm leading-relaxed mb-4">
+                High additions usually indicate new feature development, while high deletions often point to refactoring, cleaning up technical debt, or optimizing existing architecture.
+              </p>
+              <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+                <p className="text-indigo-200 text-sm font-medium">
+                  {advancedMetrics.codeChurn.additions > advancedMetrics.codeChurn.deletions * 3 
+                    ? "You've been writing a lot of new code recently! Make sure to take time to refactor."
+                    : "You have a healthy balance of writing new features and cleaning up old code."}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
