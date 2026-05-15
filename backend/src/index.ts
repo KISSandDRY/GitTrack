@@ -467,6 +467,14 @@ app.get('/api/metrics/stream', (req, res) => {
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
+
+  // Schedule Background Event Polling every 3 minutes (180,000ms)
+  import('./queue').then(({ githubEventQueue }) => {
+    githubEventQueue.add('global-event-poll', { event: 'global-event-poll', payload: {} }, {
+      repeat: { every: 180000 },
+      jobId: 'global-event-poll-singleton'
+    }).then(() => console.log('Scheduled global event polling job.'));
+  }).catch(console.error);
 });
 
 // Forcibly keep the event loop alive (workaround for Windows Node.js exit issue)
